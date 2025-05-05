@@ -48,7 +48,6 @@ public class SignInTests {
         signInPage.clearPasswordField();
     }
 
-
 //     Negative tests
 
     public boolean isEnglish() {

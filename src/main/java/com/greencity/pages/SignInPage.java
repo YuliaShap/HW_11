@@ -49,7 +49,6 @@ public class SignInPage {
         emailField.clear();
     }
 
-
     public void clearPasswordField() {
         WebElement passwordField = driver.findElement(By.id("password"));
         passwordField.clear();
