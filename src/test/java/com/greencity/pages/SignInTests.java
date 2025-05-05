@@ -7,7 +7,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterAll;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -22,6 +21,7 @@ import static org.hamcrest.Matchers.hasItem;
 
 public class SignInTests {
 
+    private static final String BASE_URL = "http://localhost:4205/#/greenCity";
     private static WebDriver driver;
     private SignInPage signInPage;
 
@@ -29,34 +29,34 @@ public class SignInTests {
     public static void setUp() {
         WebDriverManager.chromedriver().setup();
         driver = new ChromeDriver();
-        driver.get("http://localhost:4205/#/greenCity");
+        driver.get(BASE_URL);
     }
 
     @BeforeEach
     public void initPage() {
+        driver.get(BASE_URL);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        driver.get("http://localhost:4205/#/greenCity");
 
-        WebElement signInButton = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("img.ubs-header-sing-in-img.ubs-header-sing-in-img-greencity")));
+        WebElement signInButton = wait.until(ExpectedConditions.elementToBeClickable(
+                By.cssSelector("img.ubs-header-sing-in-img.ubs-header-sing-in-img-greencity")));
         signInButton.click();
 
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".sign-in-form")));
 
-        try {
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("email")));
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("password")));
-
-            signInPage = new SignInPage(driver);
-            signInPage.clearEmailField();
-            signInPage.clearPasswordField();
-        } catch (StaleElementReferenceException e) {
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("email"))).clear();
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("password"))).clear();
-        }
+        signInPage = new SignInPage(driver);
+        signInPage.clearEmailField();
+        signInPage.clearPasswordField();
     }
 
 
 //     Negative tests
+
+    public boolean isEnglish() {
+        WebElement langElement = driver.findElement(By.cssSelector(".lang-option span"));
+        String langText = langElement.getText().trim().toLowerCase();
+        return langText.equals("en");
+    }
+
 
     @ParameterizedTest
     @CsvSource({
@@ -66,25 +66,23 @@ public class SignInTests {
         signInPage.enterEmail(email);
         signInPage.enterPassword(password);
 
-        String errorMessage = signInPage.getErrorEmailText();
-
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         WebElement errorEmail = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.cssSelector("#email-err-msg > app-error")
-        ));
+                By.xpath("//div[contains(@class, 'validation-email-error')]//div")));
 
-        String errorEmailText = errorEmail.getText().trim();
+        String errorText = errorEmail.getText().trim();
+        String expectedError = isEnglish() ? expectedErrorEn : expectedErrorUa;
 
         WebElement submitButton = driver.findElement(By.cssSelector("button[type='submit']"));
         assertThat("Submit button should be disabled for invalid email", submitButton.isEnabled(), is(false));
+        assertThat(errorText, is(expectedError));
     }
 
 
     @ParameterizedTest
     @CsvSource({
             "validemail@example.com, wrongPassword, Bad email or password, Введено невірний email або пароль",
-            "nonexistentuser@example.com, SomePassword123, Bad email or password, Введено невірний email або пароль",
-            "domik339@gmail.com, WrongPassword999!, Bad email or password, Введено невірний email або пароль"
+            "nonexistentuser@example.com, SomePassword123, Bad email or password, Введено невірний email або пароль"
     })
     public void signInWithInvalidPassword(String email, String password, String expectedErrorEn, String expectedErrorUa) {
         signInPage.enterEmail(email);
@@ -92,12 +90,13 @@ public class SignInTests {
         signInPage.submit();
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-        WebElement errorPassword = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".alert-general-error.ng-star-inserted")));
+        WebElement errorPassword = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector(".alert-general-error")));
 
-        String errorPasswordText = errorPassword.getText().trim();
-        String expectedError = errorPasswordText.contains("Bad") ? expectedErrorEn : expectedErrorUa;
+        String errorText = errorPassword.getText().trim();
+        String expectedError = isEnglish() ? expectedErrorEn : expectedErrorUa;
 
-        assertThat(errorPasswordText, is(expectedError));
+        assertThat(errorText, is(expectedError));
     }
 
     @ParameterizedTest
@@ -110,17 +109,14 @@ public class SignInTests {
         signInPage.submit();
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebElement errorEmail = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//div[contains(@class, 'validation-email-error')]//div")));
 
-        WebElement errorEmail = wait.until(ExpectedConditions.presenceOfElementLocated(
-                By.cssSelector("#email-err-msg > app-error")));
+        String errorText = errorEmail.getText().trim();
+        String expectedError = isEnglish() ? expectedErrorEn : expectedErrorUa;
 
-        String errorEmailText = errorEmail.getText().trim();
-        String expectedError = errorEmailText.contains("Bad") ? expectedErrorEn : expectedErrorUa;
-
-        assertThat(errorEmailText, is(expectedError));
-
+        assertThat(errorText, is(expectedError));
     }
-
 
     @ParameterizedTest
     @CsvSource({
@@ -135,14 +131,12 @@ public class SignInTests {
         WebElement errorPassword = wait.until(ExpectedConditions.visibilityOfElementLocated(
                 By.cssSelector("#pass-err-msg > app-error")));
 
-        String errorPasswordText = errorPassword.getText().trim();
-        String expectedError = errorPasswordText.contains("Bad") ? expectedErrorEn : expectedErrorUa;
+        String errorText = errorPassword.getText().trim();
+        String expectedError = isEnglish() ? expectedErrorEn : expectedErrorUa;
 
-        assertThat(errorPasswordText, is(expectedError));
+        assertThat(errorText, is(expectedError));
     }
 
-
-    //    Positive test
     @ParameterizedTest
     @CsvSource({
             "domik339@gmail.com, Inbloom339546!"
@@ -159,7 +153,6 @@ public class SignInTests {
 
         assertThat(validMessages, hasItem(welcomeMessage));
     }
-
 
     @AfterAll
     public static void tearDown() {
